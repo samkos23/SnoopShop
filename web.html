@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnoopShop</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Inter', sans-serif; }
+body { background:#03060c; color:white; }
+
+/* NAVBAR */
+.navbar { display:flex; align-items:center; justify-content:space-between; padding:1.2rem 2rem; background:rgba(5,10,20,0.9); border-bottom:1px solid rgba(30,136,229,0.3); }
+.logo h1 { font-size:2rem; font-weight:800; background:linear-gradient(135deg,#42a5f5,#0d47a1); -webkit-background-clip:text; color:transparent; }
+.search-container { flex:1; display:flex; justify-content:center; }
+.search-bar { width:60%; max-width:600px; padding:0.6rem 1rem; border-radius:10px; border:1px solid rgba(30,136,229,0.3); background:rgba(20,25,40,0.9); color:#fff; }
+
+/* BUTTONS */
+.auth, .user-info { display:flex; gap:1rem; align-items:center; }
+.auth button, .user-info button, #cartBtn { padding:0.5rem 1rem; border-radius:8px; border:none; cursor:pointer; font-weight:600; transition:0.3s; }
+.login-btn { background:transparent; border:1px solid #42a5f5; color:#42a5f5; }
+.login-btn:hover { background:#42a5f5; color:white; }
+.register-btn { background:#42a5f5; color:white; }
+.register-btn:hover { background:#0d47a1; }
+#cartBtn { background:#42a5f5; color:white; margin-right:10px; }
+#cartBtn:hover { background:#0d47a1; }
+
+/* ITEMS */
+.items { padding:2rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:20px; }
+.item { background:#0b1220; padding:1rem; border-radius:10px; transition:0.2s; cursor:pointer; }
+.item:hover { transform:scale(1.05); }
+.item h3 { margin-bottom:0.5rem; }
+.item span { color:#42a5f5; font-weight:bold; }
+
+/* MODALS */
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); justify-content:center; align-items:center; z-index:1000; }
+.modal-content { background:#0b1220; padding:2rem; border-radius:12px; width:320px; max-width:90%; box-shadow:0 0 20px rgba(0,0,0,0.5); text-align:center; animation:fadeIn 0.3s ease; }
+.modal-content h2 { margin-bottom:1rem; font-weight:700; color:#42a5f5; }
+.modal-content input { width:100%; padding:0.7rem 0.8rem; margin:0.5rem 0; border-radius:6px; border:1px solid #42a5f5; background:rgba(20,25,40,0.9); color:white; outline:none; transition:0.3s; }
+.modal-content input:focus { border-color:#0d47a1; box-shadow:0 0 5px #42a5f5; }
+.modal-content button { margin-top:1rem; padding:0.6rem 1.2rem; border-radius:8px; border:none; cursor:pointer; font-weight:600; background:#42a5f5; color:white; transition:0.3s; }
+.modal-content button:hover { background:#0d47a1; }
+
+/* ITEM MODAL */
+.item-modal p { color:#ccc; margin:0.5rem 0; }
+
+/* CART MODAL */
+#cartModal .cart-item { display:flex; justify-content:space-between; margin-bottom:0.5rem; }
+#cartModal .cart-item span { color:#42a5f5; }
+
+/* Animations */
+@keyframes fadeIn { from {opacity:0; transform:translateY(-20px);} to {opacity:1; transform:translateY(0);} }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="logo"><h1><i class="fas fa-crown"></i> SnoopShop</h1></div>
+
+  <div class="search-container">
+    <input type="text" id="search" class="search-bar" placeholder="Search Rivals items..." onkeyup="filterItems()">
+  </div>
+
+  <!-- Cart tlačítko vždy viditelné -->
+  <button id="cartBtn" onclick="openCart()">Cart</button>
+
+  <!-- AUTH -->
+  <div class="auth" id="authArea">
+    <button class="login-btn" onclick="openModal('login')">Login</button>
+    <button class="register-btn" onclick="openModal('register')">Register</button>
+  </div>
+
+  <div class="user-info" id="userArea" style="display:none;">
+    <span id="username"></span>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="items" id="itemsContainer"></div>
+
+<!-- LOGIN/REGISTER MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Login</h2>
+    <input type="text" id="user" placeholder="Username">
+    <input type="password" id="pass" placeholder="Password">
+    <button onclick="submitForm()">Submit</button>
+  </div>
+</div>
+
+<!-- ITEM DETAIL MODAL -->
+<div class="modal" id="itemModal">
+  <div class="modal-content item-modal">
+    <h2 id="itemName"></h2>
+    <p id="itemDesc"></p>
+    <p>Price: <span id="itemPrice"></span> Kč</p>
+    <button onclick="addToCart()">Buy</button>
+  </div>
+</div>
+
+<!-- CART MODAL -->
+<div class="modal" id="cartModal">
+  <div class="modal-content">
+    <h2>Your Cart</h2>
+    <div id="cartItems"></div>
+    <p id="cartTotal"></p>
+    <button onclick="closeCart()">Close</button>
+  </div>
+</div>
+
+<script>
+/* ITEMS */
+const items = [
+  { name:"Skin Case", type:"Crate", price:21, desc:"Contains random skins for your character." },
+  { name:"Skin Case 2", type:"Crate", price:21, desc:"Advanced skins for elite players." },
+  { name:"Skin Case 3", type:"Crate", price:21, desc:"Premium skins inside." },
+  { name:"Energy Bundle", type:"Bundle", price:125, desc:"Contains health, energy, and boosts." },
+  { name:"Exogun Bundle", type:"Bundle", price:125, desc:"Weapons bundle with exoguns included." },
+  { name:"Medkit Bundle", type:"Bundle", price:125, desc:"Medkits and healing items." },
+  { name:"Classic Bundle", type:"Bundle", price:125, desc:"Starter items for new players." },
+  { name:"Heavy Duty Bundle", type:"Bundle", price:125, desc:"Heavy weapons and armor." },
+  { name:"Starter Bundle", type:"Bundle", price:125, desc:"Basic starter items for beginners." },
+  { name:"RPG Bundle", type:"Bundle", price:125, desc:"Rocket launchers and explosives." },
+  { name:"Standard Weapons Bundle", type:"Bundle", price:125, desc:"Standard weapons pack." }
+];
+
+let cart = [];
+let selectedItem = null;
+
+/* DISPLAY ITEMS */
+function displayItems(list){
+  const container = document.getElementById("itemsContainer");
+  container.innerHTML="";
+  list.forEach((item,index)=>{
+    container.innerHTML += `
+      <div class="item" onclick="openItemModal(${index})">
+        <h3>${item.name}</h3>
+        <p>${item.type}</p>
+        <span>${item.price} Kč</span>
+      </div>
+    `;
+  });
+}
+
+function filterItems(){
+  const value = document.getElementById("search").value.toLowerCase();
+  if(!value) return displayItems(items);
+  const filtered = items.filter(i => i.name.toLowerCase().includes(value) || i.type.toLowerCase().includes(value));
+  displayItems(filtered);
+}
+
+/* ITEM MODAL */
+function openItemModal(index){
+  selectedItem = items[index];
+  document.getElementById("itemName").innerText = selectedItem.name;
+  document.getElementById("itemDesc").innerText = selectedItem.desc;
+  document.getElementById("itemPrice").innerText = selectedItem.price;
+  document.getElementById("itemModal").style.display = "flex";
+}
+
+function addToCart(){
+  if(selectedItem){
+    cart.push(selectedItem);
+    alert(`${selectedItem.name} added to cart!`);
+    document.getElementById("itemModal").style.display="none";
+  }
+}
+
+/* CART */
+function openCart(){
+  const container = document.getElementById("cartItems");
+  container.innerHTML="";
+  let total = 0;
+  cart.forEach((item)=>{
+    total += item.price;
+    container.innerHTML += `
+      <div class="cart-item">
+        ${item.name} <span>${item.price} Kč</span>
+      </div>
+    `;
+  });
+  document.getElementById("cartTotal").innerText = cart.length ? `Total: ${total} Kč` : "Cart is empty";
+  document.getElementById("cartModal").style.display="flex";
+}
+
+function closeCart(){ document.getElementById("cartModal").style.display="none"; }
+
+/* LOGIN SYSTEM */
+let mode="login";
+function openModal(type){
+  mode=type;
+  document.getElementById("modal").style.display="flex";
+  document.getElementById("modalTitle").innerText = type.charAt(0).toUpperCase()+type.slice(1);
+  document.getElementById("user").value="";
+  document.getElementById("pass").value="";
+}
+
+function submitForm(){
+  const user = document.getElementById("user").value.trim();
+  const pass = document.getElementById("pass").value.trim();
+  if(!user || !pass) return alert("Please fill in all fields!");
+  if(mode==="register"){
+    if(localStorage.getItem(user)){ alert("Username already exists!"); return; }
+    localStorage.setItem(user, pass);
+    alert("Registered successfully!");
+    openModal('login');
+  } else {
+    if(localStorage.getItem(user)===pass){
+      localStorage.setItem("loggedUser",user);
+      loadUser();
+      document.getElementById("modal").style.display="none";
+    } else { alert("Wrong username or password!"); }
+  }
+}
+
+function loadUser(){
+  const user = localStorage.getItem("loggedUser");
+  if(user){
+    document.getElementById("authArea").style.display="none";
+    document.getElementById("userArea").style.display="flex";
+    document.getElementById("username").innerText=user;
+  }
+}
+
+function logout(){ localStorage.removeItem("loggedUser"); location.reload(); }
+
+// Close modals
+window.onclick = e=>{
+  if(e.target.id==="modal") document.getElementById("modal").style.display="none";
+  if(e.target.id==="itemModal") document.getElementById("itemModal").style.display="none";
+  if(e.target.id==="cartModal") document.getElementById("cartModal").style.display="none";
+};
+
+loadUser();
+displayItems(items);
+</script>
+
+</body>
+</html>
